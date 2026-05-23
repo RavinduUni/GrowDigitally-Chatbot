@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Sales AI Assistant</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#004ac6",
+                        "on-tertiary-container": "#ffede6",
+                        "surface-container-highest": "#d3e4fe",
+                        "on-error-container": "#93000a",
+                        "on-primary-container": "#eeefff",
+                        "surface-dim": "#cbdbf5",
+                        "on-secondary": "#ffffff",
+                        "secondary-fixed-dim": "#c4c7c9",
+                        "on-primary": "#ffffff",
+                        "on-secondary-fixed-variant": "#444749",
+                        "on-tertiary-fixed-variant": "#7d2d00",
+                        "error-container": "#ffdad6",
+                        "surface": "#f8f9ff",
+                        "inverse-surface": "#213145",
+                        "on-primary-fixed": "#00174b",
+                        "error": "#ba1a1a",
+                        "tertiary-container": "#bc4800",
+                        "surface-container": "#e5eeff",
+                        "outline-variant": "#c3c6d7",
+                        "inverse-primary": "#b4c5ff",
+                        "tertiary-fixed-dim": "#ffb596",
+                        "on-secondary-fixed": "#191c1e",
+                        "inverse-on-surface": "#eaf1ff",
+                        "surface-bright": "#f8f9ff",
+                        "primary-container": "#2563eb",
+                        "background": "#f8f9ff",
+                        "tertiary": "#943700",
+                        "primary-fixed-dim": "#b4c5ff",
+                        "on-surface-variant": "#434655",
+                        "surface-container-high": "#dce9ff",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface": "#0b1c30",
+                        "on-tertiary-fixed": "#360f00",
+                        "on-secondary-container": "#626567",
+                        "surface-container-low": "#eff4ff",
+                        "surface-variant": "#d3e4fe",
+                        "secondary": "#5c5f61",
+                        "secondary-container": "#e0e3e5",
+                        "primary-fixed": "#dbe1ff",
+                        "tertiary-fixed": "#ffdbcd",
+                        "on-background": "#0b1c30",
+                        "outline": "#737686",
+                        "surface-tint": "#0053db",
+                        "on-error": "#ffffff",
+                        "on-primary-fixed-variant": "#003ea8",
+                        "secondary-fixed": "#e0e3e5"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "bubble-gap": "0.75rem",
+                        "inline-padding": "0.75rem",
+                        "block-padding": "0.5rem",
+                        "container-padding": "1rem",
+                        "stack-gap": "1rem"
+                    },
+                    "fontFamily": {
+                        "label-sm": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "chat-text": ["Inter"],
+                        "label-md": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-sm": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "chat-text": ["14px", { "lineHeight": "22px", "fontWeight": "400" }],
+                        "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            user-select: none;
+        }
+
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        .expanded-state {
+            width: 500px !important;
+            height: 700px !important;
+        }
+
+        @media (max-width: 640px) {
+            .chat-window {
+                width: 100% !important;
+                height: 100% !important;
+                bottom: 0 !important;
+                right: 0 !important;
+                border-radius: 0 !important;
+            }
+        }
+    </style>
+</head>
+
+<body
+    class="bg-background text-on-background min-h-screen font-body-md selection:bg-primary-fixed selection:text-on-primary-fixed">
+    <!-- Demo Background -->
+    <main class="p-8 max-w-4xl mx-auto">
+        <header class="mb-12">
+            <h1 class="font-headline-sm text-headline-sm mb-4 text-on-surface">Product Landing Page</h1>
+            <p class="text-on-surface-variant font-body-md">This is a simulation of your website background to
+                demonstrate the floating AI Sales Assistant widget.</p>
+        </header>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="p-6 rounded-xl bg-surface-container-low border border-outline-variant">
+                <div class="w-12 h-12 bg-primary-container rounded-lg mb-4 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-on-primary-container">trending_up</span>
+                </div>
+                <h3 class="font-headline-sm text-headline-sm mb-2">Boost Conversion</h3>
+                <p class="text-on-surface-variant font-body-sm">Our AI Sales Assistant engages visitors instantly,
+                    qualifying leads while you sleep.</p>
+            </div>
+            <div class="p-6 rounded-xl bg-surface-container-low border border-outline-variant">
+                <div class="w-12 h-12 bg-tertiary-container rounded-lg mb-4 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-on-tertiary-container">support_agent</span>
+                </div>
+                <h3 class="font-headline-sm text-headline-sm mb-2">24/7 Support</h3>
+                <p class="text-on-surface-variant font-body-sm">Never miss a question. Detailed product knowledge
+                    delivered instantly via LLMs.</p>
+            </div>
+        </div>
+        <section class="mt-12 rounded-2xl overflow-hidden relative h-64 shadow-lg group">
+            <img alt="Modern Office"
+                class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                data-alt="A bright, ultra-modern corporate office lobby with floor-to-ceiling glass windows and minimalist furniture. The lighting is crisp and natural, following a light-mode aesthetic with soft blue and white tones. The mood is professional, high-end, and technologically advanced, reflecting a successful B2B SaaS environment."
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBwqrbVWh4GENhhDYtCv7D6HQ8OF54jQQV0ooJkvqcS78RmpLv3z4oYvp7YNFKNbNWjskAmOkY9FJnk8em218Kzj-_vpwOkm6gnaDefMd_Ao3frOPYfrxPRtnvKx8-ytrmsImoZbefC7PJG-j05jVnqEc3HLUsRiMon7ZFMtTrfbHEMw_EHlZ6B5o8NZloCpQUFJYG4ubOHeBtpL180NYCWIrKUt02mtwsbEd0uuXD9nHJY-uEujh4lImnc91MzmQQV9tmoYFTRDsE8" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-8">
+                <p class="text-white font-headline-sm text-headline-sm">Empowering Sales with Intelligence</p>
+            </div>
+        </section>
+    </main>
+    <!-- Chat Widget Container -->
+    <div class="fixed bottom-6 right-6 z-50 flex flex-col items-end" id="chat-widget">
+        <!-- Chat Window -->
+        <div class="chat-window mb-4 w-[380px] h-[550px] bg-surface rounded-xl shadow-[0px_10px_25px_rgba(0,0,0,0.1)] flex flex-col border border-outline-variant transition-all duration-300 ease-out origin-bottom-right scale-100 opacity-100"
+            id="chat-window">
+            <!-- TopAppBar -->
+            <header
+                class="flex justify-between items-center px-container-padding py-block-padding w-full bg-surface-container-high dark:bg-surface-container-highest rounded-t-xl border-b border-outline-variant dark:border-outline shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <span class="material-symbols-outlined text-primary dark:text-primary-fixed-dim"
+                            style="font-size: 28px;">smart_toy</span>
+                        <span
+                            class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-surface rounded-full"></span>
+                    </div>
+                    <div>
+                        <h2
+                            class="font-headline-sm text-headline-sm font-bold text-on-surface dark:text-inverse-on-surface leading-tight">
+                            Sales AI</h2>
+                        <p class="font-label-md text-label-md text-on-surface-variant">Online</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1">
+                    <button
+                        class="w-8 h-8 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-dim dark:hover:bg-secondary-container transition-colors active:scale-95 transition-transform duration-150"
+                        onclick="toggleExpand()">
+                        <span class="material-symbols-outlined" id="expand-icon">fullscreen</span>
+                    </button>
+                    <button
+                        class="w-8 h-8 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-dim dark:hover:bg-secondary-container transition-colors active:scale-95 transition-transform duration-150"
+                        onclick="toggleChat()">
+                        <span class="material-symbols-outlined">minimize</span>
+                    </button>
+                </div>
+            </header>
+            <!-- Message Area -->
+            <div class="flex-1 overflow-y-auto chat-scroll p-container-padding space-y-bubble-gap bg-surface"
+                id="message-container">
+                <!-- AI Message -->
+                <div class="flex flex-col items-start max-w-[85%] animate-fade-in-up">
+                    <div
+                        class="bg-surface border border-outline-variant text-on-surface px-4 py-3 rounded-tr-2xl rounded-br-2xl rounded-bl-2xl shadow-sm">
+                        <p class="font-chat-text text-chat-text">Hi! I’m your AI assistant. How can I help you today?
+                        </p>
+                    </div>
+                    <span class="font-label-sm text-label-sm text-outline mt-1 ml-1">10:00 AM</span>
+                </div>
+                <!-- User Message -->
+                <div class="flex flex-col items-end max-w-[85%] ml-auto animate-fade-in-up">
+                    <div
+                        class="bg-primary text-on-primary px-4 py-3 rounded-tl-2xl rounded-bl-2xl rounded-br-2xl shadow-sm">
+                        <p class="font-chat-text text-chat-text">Hello, I'd like to know more about your services.</p>
+                    </div>
+                    <span class="font-label-sm text-label-sm text-outline mt-1 mr-1">10:01 AM</span>
+                </div>
+                <!-- Quick Replies -->
+                <div class="flex flex-wrap gap-2 pt-4">
+                    <button
+                        class="px-4 py-1.5 border border-primary text-primary rounded-full font-label-md text-label-md hover:bg-primary/5 transition-colors">Pricing
+                        Details</button>
+                    <button
+                        class="px-4 py-1.5 border border-primary text-primary rounded-full font-label-md text-label-md hover:bg-primary/5 transition-colors">Book
+                        a Demo</button>
+                    <button
+                        class="px-4 py-1.5 border border-primary text-primary rounded-full font-label-md text-label-md hover:bg-primary/5 transition-colors">Case
+                        Studies</button>
+                </div>
+                <div class="hidden flex items-center gap-1.5 bg-surface border border-outline-variant px-4 py-3 rounded-2xl w-fit"
+                    id="typing-indicator">
+                    <div class="w-1.5 h-1.5 bg-outline rounded-full animate-bounce"></div>
+                    <div class="w-1.5 h-1.5 bg-outline rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                    <div class="w-1.5 h-1.5 bg-outline rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                </div>
+            </div>
+            <!-- Footer / Input -->
+            <div class="p-container-padding bg-surface border-t border-outline-variant">
+                <div class="relative flex items-center gap-2">
+                    <div class="flex-1 relative">
+                        <input
+                            class="w-full bg-surface-container border-none focus:ring-2 focus:ring-primary rounded-full px-5 py-3 pr-12 font-body-md text-on-surface placeholder:text-outline transition-all"
+                            id="chat-input" placeholder="Type a message..." type="text" />
+                        <button class="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-primary">
+                            <span class="material-symbols-outlined">sentiment_satisfied</span>
+                        </button>
+                    </div>
+                    <button
+                        class="w-12 h-12 flex items-center justify-center bg-primary text-on-primary rounded-full shadow-md active:scale-95 transition-all disabled:bg-surface-container-highest disabled:text-outline"
+                        id="send-btn" onclick="sendMessage()">
+                        <span class="material-symbols-outlined">send</span>
+                    </button>
+                </div>
+            </div>
+            <!-- BottomNavBar (Shared Component) -->
+            <nav
+                class="bg-surface-container dark:bg-surface-container-low border-t border-outline-variant dark:border-outline flex justify-around items-center py-2 px-inline-padding rounded-b-xl">
+                <a class="flex flex-col items-center justify-center bg-primary-container dark:bg-primary-fixed-dim text-on-primary-container dark:text-on-primary-fixed-variant rounded-full px-6 py-1 opacity-80 transition-opacity"
+                    href="#">
+                    <span class="material-symbols-outlined">chat</span>
+                    <span class="font-label-sm text-label-sm">Chat</span>
+                </a>
+                <a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-secondary-container px-6 py-1 hover:text-primary dark:hover:text-primary-fixed-dim transition-colors"
+                    href="#">
+                    <span class="material-symbols-outlined">help_outline</span>
+                    <span class="font-label-sm text-label-sm">Support</span>
+                </a>
+            </nav>
+        </div>
+        <!-- Chat Trigger Icon -->
+        <div class="relative group">
+            <!-- Tooltip -->
+            <div
+                class="absolute right-full mr-4 top-1/2 -translate-y-1/2 bg-inverse-surface text-inverse-on-surface font-label-md text-label-md px-4 py-2 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
+                Need help?
+                <div
+                    class="absolute right-[-6px] top-1/2 -translate-y-1/2 border-8 border-transparent border-l-inverse-surface">
+                </div>
+            </div>
+            <button
+                class="w-16 h-16 rounded-full bg-primary text-on-primary shadow-xl flex items-center justify-center hover:scale-105 active:scale-90 transition-all duration-200"
+                onclick="toggleChat()">
+                <span class="material-symbols-outlined text-3xl" id="trigger-icon">close</span>
+            </button>
+        </div>
+    </div>
+    <script>
+        const chatWindow = document.getElementById('chat-window');
+        const triggerIcon = document.getElementById('trigger-icon');
+        const messageContainer = document.getElementById('message-container');
+        const chatInput = document.getElementById('chat-input');
+        const typingIndicator = document.getElementById('typing-indicator');
+
+        let isOpen = true;
+        let isExpanded = false;
+
+        function toggleChat() {
+            isOpen = !isOpen;
+            if (isOpen) {
+                chatWindow.classList.remove('scale-0', 'opacity-0', 'pointer-events-none');
+                chatWindow.classList.add('scale-100', 'opacity-100');
+                triggerIcon.innerText = 'close';
+            } else {
+                chatWindow.classList.add('scale-0', 'opacity-0', 'pointer-events-none');
+                chatWindow.classList.remove('scale-100', 'opacity-100');
+                triggerIcon.innerText = 'chat';
+            }
+        }
+
+        function toggleExpand() {
+            isExpanded = !isExpanded;
+            const icon = document.getElementById('expand-icon');
+            if (isExpanded) {
+                chatWindow.classList.add('expanded-state');
+                icon.innerText = 'close_fullscreen';
+            } else {
+                chatWindow.classList.remove('expanded-state');
+                icon.innerText = 'fullscreen';
+            }
+        }
+
+        function sendMessage() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+
+            // Add user bubble
+            const userMsg = createBubble(text, true);
+            messageContainer.appendChild(userMsg);
+            chatInput.value = '';
+            scrollToBottom();
+
+            // Simulate AI response
+            showTyping(true);
+            setTimeout(() => {
+                showTyping(false);
+                const aiMsg = createBubble("Thanks for asking! One of our specialists will be with you shortly, or I can answer specific questions about our plans right now.", false);
+                messageContainer.appendChild(aiMsg);
+                scrollToBottom();
+            }, 2000);
+        }
+
+        function createBubble(text, isUser) {
+            const div = document.createElement('div');
+            div.className = isUser
+                ? 'flex flex-col items-end max-w-[85%] ml-auto animate-fade-in-up'
+                : 'flex flex-col items-start max-w-[85%] animate-fade-in-up';
+
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            div.innerHTML = `
+                <div class="${isUser ? 'bg-primary text-on-primary' : 'bg-surface border border-outline-variant text-on-surface'} px-4 py-3 rounded-2xl shadow-sm">
+                    <p class="font-chat-text text-chat-text">${text}</p>
+                </div>
+                <span class="font-label-sm text-label-sm text-outline mt-1 ${isUser ? 'mr-1' : 'ml-1'}">${time}</span>
+            `;
+            return div;
+        }
+
+        function showTyping(show) {
+            if (show) {
+                typingIndicator.classList.remove('hidden');
+                scrollToBottom();
+            } else {
+                typingIndicator.classList.add('hidden');
+            }
+        }
+
+        function scrollToBottom() {
+            messageContainer.scrollTo({
+                top: messageContainer.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
+
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Entrance animation
+        window.addEventListener('load', () => {
+            scrollToBottom();
+        });
+    </script>
+    <style>
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fade-in-up {
+            animation: fadeInUp 0.4s ease-out forwards;
+        }
+    </style>
+</body>
+
+</html>
