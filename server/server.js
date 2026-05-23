@@ -7,7 +7,15 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors());
+// Allow all origins and all methods for frontend → backend
+app.use(
+  cors({
+    origin: "*", // allows frontend to send requests from any origin
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"], // all HTTP methods
+    credentials: true,
+  })
+);
+app.options("*", cors());
 app.use(express.json());
 
 let isConnected = false;
