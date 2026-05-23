@@ -45,12 +45,19 @@ export const sendMessage = async (req, res) => {
       }
     );
 
+    const fallbackMessage =
+      "I'm not fully sure about that. Please share your name and contact details, and our team will contact you.";
+
     const aiReply =
       data?.reply ||
-      data?.data?.message ||
+      data?.[0]?.reply ||
       data?.data?.reply ||
+      data?.data?.message ||
+      data?.[0]?.data?.reply ||
+      data?.[0]?.data?.message ||
       data?.output ||
-      "I'm not fully sure about that. Please share your name and contact details, and our team will contact you.";
+      data?.[0]?.output ||
+      fallbackMessage;
 
     await Message.create({
       conversationId: conversation._id,

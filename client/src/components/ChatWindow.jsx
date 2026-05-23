@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import MessageBubble from './MessageBubble';
+import api from '../services/api';
+
 
 /* ─── Helper ─────────────────────────────── */
 /** Returns the current time as "HH:MM AM/PM" */
@@ -17,7 +19,7 @@ const INITIAL_MESSAGES = [
 ];
 
 /* ─── Quick-reply chip labels ────────────── */
-const QUICK_REPLIES = ['Pricing Details', 'Book a Demo', 'Contact Us'];
+const QUICK_REPLIES = ['Pricing Details', 'Book a Demo', 'Contact Details'];
 
 /**
  * ChatWindow Component
@@ -75,23 +77,15 @@ const ChatWindow = ({ isOpen, onClose }) => {
         setIsLoading(true);
 
         try {
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/chat/message`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    message: trimmed,
-                    sessionId: getSessionId(),
-                    businessId: "grow-digitally",
-                }),
+            const response = await api.post(`/api/chat/message`, {
+                message: trimmed,
+                sessionId: getSessionId(),
+                businessId: "Grow-Digitally",
             });
-
-            const data = await response.json();
 
             const aiMsg = {
                 id: Date.now() + 1,
-                text: data.reply || "Sorry, I couldn't get a reply right now.",
+                text: response.data.reply || "Sorry, I couldn't get a reply right now.",
                 isUser: false,
                 time: getTime(),
             };
