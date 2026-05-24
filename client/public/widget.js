@@ -14,11 +14,11 @@
 
   const css = document.createElement("link");
   css.rel = "stylesheet";
-  css.href = "https://YOUR_FRONTEND_DOMAIN/assets/index.css";
+  css.href = "https://grow-digitally-chatbot-4uln.vercel.app/assets/index.css";
   document.head.appendChild(css);
 
   const script = document.createElement("script");
   script.type = "module";
-  script.src = "https://YOUR_FRONTEND_DOMAIN/assets/index.js";
+  script.src = "https://grow-digitally-chatbot-4uln.vercel.app/assets/index.js";
   document.body.appendChild(script);
 })();
