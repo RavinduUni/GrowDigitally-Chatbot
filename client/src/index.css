@@ -1,15 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
 
-/*
-  Tailwind v4: import theme tokens + utilities but deliberately SKIP preflight.
-  Preflight is Tailwind's global CSS reset — injecting it into host websites
-  resets their margins, box-sizing, and element styles, causing layout shifts.
-  By importing only "theme" (CSS variables) and "utilities" (classes like flex/fixed),
-  the widget works perfectly while the host page's layout is untouched.
-*/
-@import "tailwindcss/theme" layer(base);
-@import "tailwindcss/utilities" layer(utilities);
+@import "tailwindcss";
 
 /* DO NOT style body here */
 
@@ -35,7 +27,7 @@
   white-space: nowrap;
   word-wrap: normal;
   direction: ltr;
-  font-feature-settings: 'liga'; 
+  font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased;
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   user-select: none;
