@@ -1,8 +1,20 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.jsx'
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App.jsx";
+import "./index.css";
 
-createRoot(document.getElementById('root')).render(
+const rootId = "growdigitally-chat-widget-root";
+
+let rootElement = document.getElementById(rootId);
+
+if (!rootElement) {
+  rootElement = document.createElement("div");
+  rootElement.id = rootId;
+  document.body.appendChild(rootElement);
+}
+
+ReactDOM.createRoot(rootElement).render(
+  <React.StrictMode>
     <App />
-)
+  </React.StrictMode>
+);
