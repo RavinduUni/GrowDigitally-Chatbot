@@ -10,7 +10,7 @@ const App = () => {
   };
 
   return (
-    <>
+    <div id="gd-chat-widget">
       {/* Chat Window */}
       <ChatWindow
         isOpen={isChatOpen}
@@ -22,7 +22,7 @@ const App = () => {
         isOpen={isChatOpen}
         onClick={toggleChat}
       />
-    </>
+    </div>
   );
 };
 
