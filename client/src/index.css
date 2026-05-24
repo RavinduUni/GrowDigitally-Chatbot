@@ -1,16 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
 
-/*
-  Import Tailwind v4 WITHOUT preflight.
-  - "tailwindcss/theme"     → CSS custom properties / design tokens (required for utilities to work)
-  - "tailwindcss/utilities" → all utility classes (flex, rounded, shadow, etc.)
-  We deliberately SKIP "tailwindcss/preflight" so the host page's global styles are untouched.
-*/
-@import "tailwindcss/theme" layer(base);
-@import "tailwindcss/utilities" layer(utilities);
-
-
+@import "tailwindcss";
 
 /* DO NOT style body here */
 
@@ -36,7 +27,7 @@
   white-space: nowrap;
   word-wrap: normal;
   direction: ltr;
-  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga'; 
   -webkit-font-smoothing: antialiased;
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   user-select: none;
