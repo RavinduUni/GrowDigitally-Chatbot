@@ -77,20 +77,15 @@ const ChatWindow = ({ isOpen, onClose }) => {
         setIsLoading(true);
 
         try {
-            const response = await api.post("", {
-                question: trimmed,
+            const response = await api.post(`/api/chat/message`, {
+                message: trimmed,
                 sessionId: getSessionId(),
                 businessId: "Grow-Digitally",
             });
 
-            const reply =
-                response.data?.reply ||
-                response.data?.[0]?.reply ||
-                "Sorry, I couldn't get a reply right now.";
-
             const aiMsg = {
                 id: Date.now() + 1,
-                text: reply,
+                text: response.data.reply || "Sorry, I couldn't get a reply right now.",
                 isUser: false,
                 time: getTime(),
             };
