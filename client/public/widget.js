@@ -2,41 +2,62 @@
   if (window.GrowDigitallyWidgetLoaded) return;
   window.GrowDigitallyWidgetLoaded = true;
 
-  const hostId = "growdigitally-chat-widget-host";
+  // ── 1. Load fonts into document.head ───────────────────────────────────────
+  // @font-face rules are GLOBAL — fonts loaded in the main document are
+  // accessible from inside Shadow DOM too. This is the reliable way to load
+  // icon fonts for a widget embedded in any host website.
+  function addHeadLink(href) {
+    if (document.querySelector('link[href="' + href + '"]')) return;
+    var l = document.createElement("link");
+    l.rel = "stylesheet";
+    l.href = href;
+    document.head.appendChild(l);
+  }
+  addHeadLink("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+  addHeadLink("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap");
 
-  let host = document.getElementById(hostId);
+  // ── 2. Create host element (zero-size, fixed, no layout impact) ────────────
+  var hostId = "growdigitally-chat-widget-host";
+  var host = document.getElementById(hostId);
   if (!host) {
     host = document.createElement("div");
     host.id = hostId;
-    // Ensure the host element itself has no impact on layout
     host.style.cssText =
       "position:fixed;right:0;bottom:0;width:0;height:0;z-index:999999;overflow:visible;pointer-events:none;";
     document.body.appendChild(host);
   }
 
-  // Attach a Shadow DOM so all widget CSS is fully isolated
-  const shadow = host.attachShadow({ mode: "open" });
+  // ── 3. Attach Shadow DOM to fully isolate widget CSS ──────────────────────
+  var shadow = host.attachShadow({ mode: "open" });
 
-  // Mount point inside shadow root
-  const mountPoint = document.createElement("div");
+  // Mount point for React inside the shadow root
+  var mountPoint = document.createElement("div");
   mountPoint.id = "growdigitally-chat-widget-root";
   mountPoint.style.cssText = "pointer-events:auto;";
   shadow.appendChild(mountPoint);
 
-  // @font-face rules don't cross Shadow DOM boundaries, so we must inject
-  // the Google Fonts stylesheets (Inter + Material Symbols) inside the shadow root.
-  const interFont = document.createElement("link");
-  interFont.rel = "stylesheet";
-  interFont.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap";
-  shadow.appendChild(interFont);
+  // ── 4. Inject an inline @font-face block inside shadow root ───────────────
+  // Even though fonts are global, some browsers need the font-family declaration
+  // to be explicitly re-stated inside the shadow root for icon font ligatures to work.
+  var fontStyle = document.createElement("style");
+  fontStyle.textContent = [
+    "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');",
+    "@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');",
+    ".material-symbols-outlined {",
+    "  font-family: 'Material Symbols Outlined' !important;",
+    "  font-weight: normal; font-style: normal; font-size: 24px;",
+    "  line-height: 1; letter-spacing: normal; text-transform: none;",
+    "  display: inline-block; white-space: nowrap; word-wrap: normal;",
+    "  direction: ltr; font-feature-settings: 'liga';",
+    "  -webkit-font-smoothing: antialiased;",
+    "  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;",
+    "  user-select: none; vertical-align: middle;",
+    "}",
+  ].join("\n");
+  shadow.appendChild(fontStyle);
 
-  const iconsFont = document.createElement("link");
-  iconsFont.rel = "stylesheet";
-  iconsFont.href = "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap";
-  shadow.appendChild(iconsFont);
-
-  // Inject widget CSS inside the shadow root (not the host page)
-  const cssLink = document.createElement("link");
+  // ── 5. Inject widget CSS inside shadow root (Tailwind stays isolated) ──────
+  var cssLink = document.createElement("link");
   cssLink.rel = "stylesheet";
   cssLink.href = "https://grow-digitally-chatbot-6tky.vercel.app/assets/index.css";
   shadow.appendChild(cssLink);
@@ -44,8 +65,9 @@
   // Store the shadow root so main.jsx can find the mount point
   window.__GDWidgetShadowRoot = shadow;
 
-  const script = document.createElement("script");
+  // ── 6. Load the React widget bundle ───────────────────────────────────────
+  var script = document.createElement("script");
   script.type = "module";
   script.src = "https://grow-digitally-chatbot-6tky.vercel.app/assets/index.js";
   document.body.appendChild(script);
-})();
+})();
