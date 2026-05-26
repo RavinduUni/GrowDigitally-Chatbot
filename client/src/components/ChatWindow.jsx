@@ -77,8 +77,8 @@ const ChatWindow = ({ isOpen, onClose }) => {
         setIsLoading(true);
 
         try {
-            const response = await api.post(`/api/chat/message`, {
-                message: trimmed,
+            const response = await api.post(`${import.meta.env.N8N_CHAT_WEBHOOK_URL}`,{
+                question: trimmed,
                 sessionId: getSessionId(),
                 businessId: "Grow-Digitally",
             });
