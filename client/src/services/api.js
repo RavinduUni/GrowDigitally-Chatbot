@@ -1,10 +1,11 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_REACT_APP_BACKEND_URL,
+  baseURL: 'https://n8n.kasunpremarathna.com/webhook/5275cd1a-5b14-4b7b-a4db-78e59b0a0fff',
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000,
 });
 
 // Attach JWT token to every request

@@ -77,15 +77,20 @@ const ChatWindow = ({ isOpen, onClose }) => {
         setIsLoading(true);
 
         try {
-            const response = await api.post(`${import.meta.env.N8N_CHAT_WEBHOOK_URL}`,{
+            const response = await api.post("", {
                 question: trimmed,
                 sessionId: getSessionId(),
                 businessId: "Grow-Digitally",
             });
 
+            const reply =
+                response.data?.reply ||
+                response.data?.[0]?.reply ||
+                "Sorry, I couldn't get a reply right now.";
+
             const aiMsg = {
                 id: Date.now() + 1,
-                text: response.data.reply || "Sorry, I couldn't get a reply right now.",
+                text: reply,
                 isUser: false,
                 time: getTime(),
             };
