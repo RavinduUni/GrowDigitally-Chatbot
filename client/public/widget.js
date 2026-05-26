@@ -23,7 +23,19 @@
   mountPoint.style.cssText = "pointer-events:auto;";
   shadow.appendChild(mountPoint);
 
-  // Inject CSS inside the shadow root (not the host page)
+  // @font-face rules don't cross Shadow DOM boundaries, so we must inject
+  // the Google Fonts stylesheets (Inter + Material Symbols) inside the shadow root.
+  const interFont = document.createElement("link");
+  interFont.rel = "stylesheet";
+  interFont.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap";
+  shadow.appendChild(interFont);
+
+  const iconsFont = document.createElement("link");
+  iconsFont.rel = "stylesheet";
+  iconsFont.href = "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap";
+  shadow.appendChild(iconsFont);
+
+  // Inject widget CSS inside the shadow root (not the host page)
   const cssLink = document.createElement("link");
   cssLink.rel = "stylesheet";
   cssLink.href = "https://grow-digitally-chatbot-6tky.vercel.app/assets/index.css";
