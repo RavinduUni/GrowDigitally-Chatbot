@@ -17,22 +17,6 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    let conversation = await Conversation.findOne({ sessionId });
-
-    if (!conversation) {
-      conversation = await Conversation.create({
-        sessionId,
-        businessId,
-        lastMessage: message,
-      });
-    }
-
-    await Message.create({
-      conversationId: conversation._id,
-      sender: "user",
-      text: message,
-    });
-
     const { data } = await axios.post(
       process.env.N8N_CHAT_WEBHOOK_URL,
       {
@@ -59,6 +43,27 @@ export const sendMessage = async (req, res) => {
       data?.[0]?.output ||
       fallbackMessage;
 
+    res.status(200).json({
+      success: true,
+      reply: aiReply,
+    });
+
+    let conversation = await Conversation.findOne({ sessionId });
+
+    if (!conversation) {
+      conversation = await Conversation.create({
+        sessionId,
+        businessId,
+        lastMessage: message,
+      });
+    }
+
+    await Message.create({
+      conversationId: conversation._id,
+      sender: "user",
+      text: message,
+    });
+
     await Message.create({
       conversationId: conversation._id,
       sender: "ai",
@@ -67,12 +72,6 @@ export const sendMessage = async (req, res) => {
 
     conversation.lastMessage = aiReply;
     await conversation.save();
-
-    return res.status(200).json({
-      success: true,
-      reply: aiReply,
-      conversationId: conversation._id,
-    });
   } catch (error) {
     console.error("Error sending message:", error);
 
