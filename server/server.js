@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import connectDB from "./config/db.js";
 import chatRouter from "./routes/chatRoute.js";
+import businessRouter from "./routes/businessRoute.js";
 dotenv.config();
 
 const app = express();
@@ -34,6 +35,6 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/chat", chatRouter);
-
+app.use("/api/business", businessRouter);
 
 export default app;

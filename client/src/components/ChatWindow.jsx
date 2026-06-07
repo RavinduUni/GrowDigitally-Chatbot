@@ -30,7 +30,7 @@ const QUICK_REPLIES = ['Pricing Details', 'Book a Demo', 'Contact Details'];
  *  - isOpen  : boolean – controls visibility
  *  - onClose : () => void – called when the minimize button is pressed
  */
-const ChatWindow = ({ isOpen, onClose }) => {
+const ChatWindow = ({ isOpen, onClose, businessId = "default-business" }) => {
     /* ── State ────────────────────────────────────── */
     const [messages, setMessages] = useState(INITIAL_MESSAGES);
     const [inputValue, setInputValue] = useState('');
@@ -80,7 +80,7 @@ const ChatWindow = ({ isOpen, onClose }) => {
             const response = await api.post(`/api/chat/message`, {
                 message: trimmed,
                 sessionId: getSessionId(),
-                businessId: "Grow-Digitally",
+                businessId,
             });
 
             const aiMsg = {

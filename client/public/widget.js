@@ -2,6 +2,23 @@
   if (window.GrowDigitallyWidgetLoaded) return;
   window.GrowDigitallyWidgetLoaded = true;
 
+  // ── 0. Read widget token from <script data-token="..."> ────────────────────
+  // Business owners embed the widget like:
+  //   <script src="widget.js" data-token="abc123..." defer></script>
+  // We capture the token here (before defer moves execution) using
+  // document.currentScript, then fall back to querying the DOM.
+  var widgetToken =
+    (document.currentScript && document.currentScript.dataset.token) ||
+    (function () {
+      var s = document.querySelector(
+        'script[src*="widget.js"][data-token]'
+      );
+      return s ? s.dataset.token : null;
+    })();
+
+  // Store on window so main.jsx can read it after the React bundle loads.
+  window.__GDWidgetToken = widgetToken || null;
+
   // ── 1. Load fonts into document.head ───────────────────────────────────────
   // @font-face rules are GLOBAL — fonts loaded in the main document are
   // accessible from inside Shadow DOM too. This is the reliable way to load
@@ -13,8 +30,12 @@
     l.href = href;
     document.head.appendChild(l);
   }
-  addHeadLink("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
-  addHeadLink("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap");
+  addHeadLink(
+    "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+  );
+  addHeadLink(
+    "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
+  );
 
   // ── 2. Create host element (zero-size, fixed, no layout impact) ────────────
   var hostId = "growdigitally-chat-widget-host";
@@ -56,7 +77,7 @@
   ].join("\n");
   shadow.appendChild(fontStyle);
 
-  // ── 5. Inject widget CSS inside shadow root (Tailwind stays isolated) ──────
+  // ── 5. Inject widget CSS inside shadow root ────────────────────────────────
   var cssLink = document.createElement("link");
   cssLink.rel = "stylesheet";
   cssLink.href = "https://grow-digitally-chatbot-6tky.vercel.app/assets/index.css";
