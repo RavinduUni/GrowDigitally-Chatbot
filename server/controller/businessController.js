@@ -73,7 +73,7 @@ export const registerBusiness = async (req, res) => {
     const embedCode = `<script src="${
       process.env.WIDGET_URL ||
       "https://grow-digitally-chatbot-6tky.vercel.app/widget.js"
-    }" data-token="${widgetToken}" defer></script>`;
+    }" data-token="${widgetToken}" async></script>`;
 
     return res.status(201).json({
       success: true,
