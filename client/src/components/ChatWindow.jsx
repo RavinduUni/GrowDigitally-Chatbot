@@ -54,7 +54,7 @@ const ChatWindow = ({ isOpen, onClose, businessId = "default-business" }) => {
         let sessionId = localStorage.getItem("chat_session_id");
 
         if (!sessionId) {
-            sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+            sessionId = `session_${crypto.randomUUID()}`;
             localStorage.setItem("chat_session_id", sessionId);
         }
 
