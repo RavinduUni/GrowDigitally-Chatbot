@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
 import ChatIcon from "./components/ChatIcon";
 import ChatWindow from "./components/ChatWindow";
 import RegisterPage from "./components/RegisterPage";
@@ -41,36 +42,14 @@ const useBusinessId = (widgetToken) => {
 };
 
 /* ─────────────────────────────────────────────────────────────
-   Simple hash router
+   Widget route — waits for businessId to resolve
 ───────────────────────────────────────────────────────────── */
-const useHashRoute = () => {
-  const [hash, setHash] = useState(window.location.hash);
-
-  useEffect(() => {
-    const onHashChange = () => setHash(window.location.hash);
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
-  }, []);
-
-  return hash;
-};
-
-/* ─────────────────────────────────────────────────────────────
-   App
-───────────────────────────────────────────────────────────── */
-const App = ({ widgetToken }) => {
+const WidgetRoute = ({ widgetToken }) => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const { businessId, loading } = useBusinessId(widgetToken);
-  const hash = useHashRoute();
 
   const toggleChat = () => setIsChatOpen((prev) => !prev);
 
-  /* ── Register page ── */
-  if (hash === "#/register") {
-    return <RegisterPage />;
-  }
-
-  /* ── Widget (default) — wait for businessId to resolve ── */
   if (loading) return null;
 
   return (
@@ -82,6 +61,24 @@ const App = ({ widgetToken }) => {
       />
       <ChatIcon isOpen={isChatOpen} onClick={toggleChat} />
     </div>
+  );
+};
+
+/* ─────────────────────────────────────────────────────────────
+   App — React Router DOM routes
+───────────────────────────────────────────────────────────── */
+const App = ({ widgetToken }) => {
+  return (
+    <Routes>
+      {/* Business registration page */}
+      <Route path="/register" element={<RegisterPage />} />
+
+      {/* Embeddable chat widget (default route) */}
+      <Route path="/" element={<WidgetRoute widgetToken={widgetToken} />} />
+
+      {/* Catch-all → redirect to widget */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 };
 

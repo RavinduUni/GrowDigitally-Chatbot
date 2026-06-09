@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { NavLink } from 'react-router-dom';
 import MessageBubble from './MessageBubble';
 import api from '../services/api';
 
@@ -259,24 +260,36 @@ const ChatWindow = ({ isOpen, onClose, businessId = "default-business" }) => {
           BOTTOM NAV BAR
       ════════════════════════════════════════ */}
             <nav className="bg-[#e5eeff] border-t border-[#c3c6d7] flex justify-around items-center py-2 px-3 rounded-b-xl shrink-0">
-                {/* Chat tab — active */}
-                <a
-                    href="#"
-                    onClick={e => e.preventDefault()}
-                    className="flex flex-col items-center justify-center bg-[#2563eb] text-white rounded-full px-6 py-1 opacity-90 transition-opacity"
+                {/* Chat tab */}
+                <NavLink
+                    to="/"
+                    end
+                    className={({ isActive }) =>
+                        `flex flex-col items-center justify-center rounded-full px-6 py-1 transition-all ${
+                            isActive
+                                ? 'bg-[#2563eb] text-white opacity-90'
+                                : 'text-[#434655] hover:text-[#004ac6]'
+                        }`
+                    }
                 >
                     <span className="material-symbols-outlined">chat</span>
                     <span className="text-[11px] font-semibold tracking-wide leading-[16px]">Chat</span>
-                </a>
+                </NavLink>
+
                 {/* Support tab */}
-                <a
-                    href="#"
-                    onClick={e => e.preventDefault()}
-                    className="flex flex-col items-center justify-center text-[#434655] px-6 py-1 hover:text-[#004ac6] transition-colors"
+                <NavLink
+                    to="/support"
+                    className={({ isActive }) =>
+                        `flex flex-col items-center justify-center rounded-full px-6 py-1 transition-all ${
+                            isActive
+                                ? 'bg-[#2563eb] text-white opacity-90'
+                                : 'text-[#434655] hover:text-[#004ac6]'
+                        }`
+                    }
                 >
                     <span className="material-symbols-outlined">help_outline</span>
                     <span className="text-[11px] font-semibold tracking-wide leading-[16px]">Support</span>
-                </a>
+                </NavLink>
             </nav>
         </div>
     );
