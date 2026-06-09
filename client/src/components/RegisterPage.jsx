@@ -567,22 +567,33 @@ const styles = {
   },
 };
 
-/* Inject keyframes for spinner into document */
-if (typeof document !== "undefined" && !document.getElementById("gd-register-styles")) {
-  const style = document.createElement("style");
-  style.id = "gd-register-styles";
-  style.textContent = `
-    @keyframes gd-spin { to { transform: rotate(360deg); } }
-    #gd-register-form input:focus {
-      border-color: rgba(91,156,246,0.6) !important;
-      background: rgba(91,156,246,0.08) !important;
-    }
-    #gd-register-form button[type="submit"]:not(:disabled):hover {
-      opacity: 0.9;
-      transform: translateY(-1px);
-    }
-  `;
-  document.head.appendChild(style);
+/* Inject keyframes for spinner.
+   When running as an embedded widget the Shadow DOM must own this style —
+   injecting into document.head would make it invisible inside the shadow root.
+   In local dev (no shadow root) we fall back to document.head. */
+if (typeof document !== "undefined") {
+  const styleTarget =
+    (window.__GDWidgetShadowRoot &&
+      !window.__GDWidgetShadowRoot.getElementById("gd-register-styles") &&
+      window.__GDWidgetShadowRoot) ||
+    (!document.getElementById("gd-register-styles") && document.head);
+
+  if (styleTarget) {
+    const style = document.createElement("style");
+    style.id = "gd-register-styles";
+    style.textContent = `
+      @keyframes gd-spin { to { transform: rotate(360deg); } }
+      #gd-register-form input:focus {
+        border-color: rgba(91,156,246,0.6) !important;
+        background: rgba(91,156,246,0.08) !important;
+      }
+      #gd-register-form button[type="submit"]:not(:disabled):hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+      }
+    `;
+    styleTarget.appendChild(style);
+  }
 }
 
 export default RegisterPage;

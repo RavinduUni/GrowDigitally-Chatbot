@@ -19,25 +19,7 @@
   // Store on window so main.jsx can read it after the React bundle loads.
   window.__GDWidgetToken = widgetToken || null;
 
-  // ── 1. Load fonts into document.head ───────────────────────────────────────
-  // @font-face rules are GLOBAL — fonts loaded in the main document are
-  // accessible from inside Shadow DOM too. This is the reliable way to load
-  // icon fonts for a widget embedded in any host website.
-  function addHeadLink(href) {
-    if (document.querySelector('link[href="' + href + '"]')) return;
-    var l = document.createElement("link");
-    l.rel = "stylesheet";
-    l.href = href;
-    document.head.appendChild(l);
-  }
-  addHeadLink(
-    "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-  );
-  addHeadLink(
-    "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
-  );
-
-  // ── 2. Create host element (zero-size, fixed, no layout impact) ────────────
+  // ── 1. Create host element (zero-size, fixed, no layout impact) ────────────
   var hostId = "growdigitally-chat-widget-host";
   var host = document.getElementById(hostId);
   if (!host) {
@@ -48,7 +30,7 @@
     document.body.appendChild(host);
   }
 
-  // ── 3. Attach Shadow DOM to fully isolate widget CSS ──────────────────────
+  // ── 2. Attach Shadow DOM to fully isolate widget CSS ──────────────────────
   var shadow = host.attachShadow({ mode: "open" });
 
   // Mount point for React inside the shadow root
@@ -57,13 +39,15 @@
   mountPoint.style.cssText = "pointer-events:auto;";
   shadow.appendChild(mountPoint);
 
-  // ── 4. Inject an inline @font-face block inside shadow root ───────────────
-  // Even though fonts are global, some browsers need the font-family declaration
-  // to be explicitly re-stated inside the shadow root for icon font ligatures to work.
+  // ── 3. Inject fonts INSIDE the shadow root ─────────────────────────────────
+  // @font-face / @import rules do NOT pierce the Shadow DOM boundary in all
+  // browsers. We inject them directly into the shadow root so fonts and icon
+  // ligatures always render correctly regardless of the host page's CSP.
   var fontStyle = document.createElement("style");
   fontStyle.textContent = [
     "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');",
     "@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');",
+    "*,*::before,*::after{box-sizing:border-box;}",
     ".material-symbols-outlined {",
     "  font-family: 'Material Symbols Outlined' !important;",
     "  font-weight: normal; font-style: normal; font-size: 24px;",
@@ -77,18 +61,40 @@
   ].join("\n");
   shadow.appendChild(fontStyle);
 
-  // ── 5. Inject widget CSS inside shadow root ────────────────────────────────
+  // ── 4. Inject widget CSS inside shadow root ────────────────────────────────
+  // Points to widget.css which Vite now outputs alongside widget.js at the
+  // root of the dist folder — no more assets/index.css path mismatch.
+  var base = (function () {
+    var s =
+      document.currentScript ||
+      document.querySelector('script[src*="widget.js"]');
+    if (s) {
+      var src = s.src;
+      return src.substring(0, src.lastIndexOf("/") + 1);
+    }
+    return "https://grow-digitally-chatbot-6tky.vercel.app/";
+  })();
+
   var cssLink = document.createElement("link");
   cssLink.rel = "stylesheet";
-  cssLink.href = "https://grow-digitally-chatbot-6tky.vercel.app/assets/index.css";
+  cssLink.href = base + "widget.css";
   shadow.appendChild(cssLink);
 
   // Store the shadow root so main.jsx can find the mount point
   window.__GDWidgetShadowRoot = shadow;
 
-  // ── 6. Load the React widget bundle ───────────────────────────────────────
+  // ── 5. Load the React widget bundle ───────────────────────────────────────
+  // widget.js is now the exact filename Vite outputs — no path mismatch.
   var script = document.createElement("script");
   script.type = "module";
-  script.src = "https://grow-digitally-chatbot-6tky.vercel.app/assets/index.js";
-  document.body.appendChild(script);
+  script.src = base + "widget.js";
+
+  // Prevent double-loading when widget.js IS the script tag itself
+  // (the loader script and the React bundle share the same filename only in
+  //  certain build setups — guard against it just in case).
+  if (document.querySelector('script[src="' + script.src + '"]') === document.currentScript) {
+    // Already loading — skip
+  } else {
+    document.body.appendChild(script);
+  }
 })();

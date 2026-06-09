@@ -8,9 +8,12 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        entryFileNames: "assets/index.js",
-        chunkFileNames: "assets/index.js",
-        assetFileNames: "assets/index.css",
+        // Output as "widget.js" / "widget.css" so the embed <script src="widget.js"> resolves
+        // correctly without any path mismatch against the Vite default "assets/index.js".
+        entryFileNames: "widget.js",
+        chunkFileNames: "widget.js",
+        assetFileNames: (assetInfo) =>
+          assetInfo.name?.endsWith('.css') ? 'widget.css' : assetInfo.name,
       },
     },
   },
