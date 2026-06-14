@@ -56,7 +56,9 @@ app.use(
                 imgSrc: ["'self'", "data:", "https:"],
                 connectSrc: [
                     "'self'",
-                    // n8n webhook host
+                    // OpenAI API
+                    "https://api.openai.com",
+                    // n8n — scraping/training only
                     process.env.N8N_HOST || "https://n8n.kasunpremarathna.com",
                 ],
                 frameSrc: ["'none'"],

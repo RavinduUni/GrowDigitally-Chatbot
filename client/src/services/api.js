@@ -7,29 +7,24 @@ const api = axios.create({
   },
 });
 
-// Attach JWT token to every request
+// Attach widget token to every request for API authentication
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    const widgetToken = window.__GDWidgetToken;
+    if (widgetToken) {
+      config.headers['x-widget-token'] = widgetToken;
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Handle 401 responses globally
+// Handle auth errors globally
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      // Redirect to login if not already there
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      console.error('Widget auth error:', error.response?.data?.message);
     }
     return Promise.reject(error);
   }
