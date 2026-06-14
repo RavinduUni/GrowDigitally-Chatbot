@@ -11,5 +11,16 @@
       "src": "/(.*)",
       "dest": "server.js"
     }
-  ]
+  ],
+  "crons": [
+    {
+      "path": "/api/business/process-queue",
+      "schedule": "* * * * *"
+    }
+  ],
+  "functions": {
+    "server.js": {
+      "maxDuration": 60
+    }
+  }
 }

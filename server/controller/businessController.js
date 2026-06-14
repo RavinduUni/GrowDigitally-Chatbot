@@ -1,6 +1,10 @@
 import crypto from "crypto";
 import axios from "axios";
 import Business from "../models/Business.js";
+import ScrapingJob from "../models/ScrapingJob.js";
+
+const MAX_ATTEMPTS = 3;
+const BACKOFF_SECONDS = [30, 120, 600]; // 30s, 2m, 10m
 
 /* ─────────────────────────────────────────────────────────────
    POST /api/business/register
@@ -51,28 +55,9 @@ export const registerBusiness = async (req, res) => {
       knowledgeBaseStatus: "pending",
     });
 
-    // ── Trigger n8n scraping (fire-and-forget) ────────────────
-    if (process.env.N8N_TRAIN_WEBHOOK) {
-      // Set to "scraping" immediately so the frontend sees progress
-      Business.findByIdAndUpdate(business._id, { knowledgeBaseStatus: "scraping" }).catch(
-        console.error
-      );
-
-      axios
-        .post(process.env.N8N_TRAIN_WEBHOOK, { businessId, websiteUrl })
-        .then(() => {
-          console.log(`[Business] Scraping triggered for ${businessId}`);
-        })
-        .catch((err) => {
-          console.error("[Business] Failed to trigger scraping:", err.message);
-          // Mark as failed so the frontend can show an error instead of spinning forever
-          Business.findByIdAndUpdate(business._id, {
-            knowledgeBaseStatus: "failed",
-          }).catch(console.error);
-        });
-    } else {
-      console.warn("[Business] N8N_TRAIN_WEBHOOK not set — scraping skipped");
-    }
+    // ── Queue scraping job (processed by Vercel Cron via /process-queue) ──
+    await ScrapingJob.create({ businessId, websiteUrl });
+    console.log(`[Business] Scraping job queued for ${businessId}`);
 
     // ── Build embed code snippet ──────────────────────────────
     const embedCode = `<script src="${
@@ -96,6 +81,85 @@ export const registerBusiness = async (req, res) => {
       error: error.message,
     });
   }
+};
+
+/* ─────────────────────────────────────────────────────────────
+   POST /api/business/process-queue
+   Called by Vercel Cron every minute. Picks up to 3 pending scraping
+   jobs and fires them to n8n. Protected by x-n8n-secret header.
+───────────────────────────────────────────────────────────── */
+export const processScrapingQueue = async (req, res) => {
+  // Accept Vercel Cron's automatic bearer token OR the manual n8n secret header
+  const cronAuth = req.headers["authorization"];
+  const n8nSecret = req.headers["x-n8n-secret"];
+  const validCron =
+    process.env.CRON_SECRET && cronAuth === `Bearer ${process.env.CRON_SECRET}`;
+  const validManual =
+    process.env.N8N_CALLBACK_SECRET && n8nSecret === process.env.N8N_CALLBACK_SECRET;
+
+  if (!validCron && !validManual) {
+    return res.status(403).json({ success: false, message: "Unauthorized" });
+  }
+
+  if (!process.env.N8N_TRAIN_WEBHOOK) {
+    return res.status(200).json({ success: true, processed: 0, message: "N8N_TRAIN_WEBHOOK not configured" });
+  }
+
+  const now = new Date();
+  const jobs = await ScrapingJob.find({
+    status: "pending",
+    attempts: { $lt: MAX_ATTEMPTS },
+    retryAfter: { $lte: now },
+  })
+    .sort({ createdAt: 1 })
+    .limit(3);
+
+  if (jobs.length === 0) {
+    return res.status(200).json({ success: true, processed: 0 });
+  }
+
+  const results = await Promise.allSettled(
+    jobs.map(async (job) => {
+      await job.updateOne({ status: "processing", processedAt: now });
+      await Business.findOneAndUpdate(
+        { businessId: job.businessId },
+        { knowledgeBaseStatus: "scraping" }
+      );
+
+      try {
+        await axios.post(process.env.N8N_TRAIN_WEBHOOK, {
+          businessId: job.businessId,
+          websiteUrl: job.websiteUrl,
+        });
+        await job.updateOne({ status: "done" });
+        console.log(`[Queue] Scraping triggered: ${job.businessId}`);
+      } catch (err) {
+        const nextAttempt = job.attempts + 1;
+        const backoffSecs = BACKOFF_SECONDS[nextAttempt - 1] ?? 600;
+        const retryAfter = new Date(Date.now() + backoffSecs * 1000);
+
+        if (nextAttempt >= MAX_ATTEMPTS) {
+          await job.updateOne({ status: "failed", attempts: nextAttempt, lastError: err.message });
+          await Business.findOneAndUpdate(
+            { businessId: job.businessId },
+            { knowledgeBaseStatus: "failed" }
+          );
+          console.error(`[Queue] Job permanently failed: ${job.businessId} — ${err.message}`);
+        } else {
+          await job.updateOne({
+            status: "pending",
+            attempts: nextAttempt,
+            lastError: err.message,
+            retryAfter,
+          });
+          console.warn(`[Queue] Job will retry (attempt ${nextAttempt}/${MAX_ATTEMPTS}): ${job.businessId}`);
+        }
+      }
+    })
+  );
+
+  const processed = results.filter((r) => r.status === "fulfilled").length;
+  return res.status(200).json({ success: true, processed, total: jobs.length });
 };
 
 /* ─────────────────────────────────────────────────────────────

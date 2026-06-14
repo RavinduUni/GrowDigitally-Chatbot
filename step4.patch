@@ -1,0 +1,243 @@
+From 0944ead27e43465bf7415373d2c21dcab7404753 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 14 Jun 2026 05:05:56 +0000
+Subject: [PATCH] feat: MongoDB-backed scraping job queue with Vercel Cron
+ (Step 4)
+
+- Add ScrapingJob model: tracks status, attempts, retryAfter for backoff
+- On registration: write a ScrapingJob instead of calling n8n directly
+- Add POST /api/business/process-queue: picks up to 3 pending jobs,
+  fires them to n8n, handles failures with exponential backoff (30s/2m/10m)
+  and marks permanently failed after 3 attempts
+- Add Vercel Cron to call /process-queue every minute (vercel.json)
+- Increase Vercel function maxDuration to 60s for AI/scraping calls
+- Auth: Vercel Cron bearer token OR x-n8n-secret header for manual calls
+- Document CRON_SECRET in env.example
+---
+ server/controller/businessController.js | 108 +++++++++++++++++++-----
+ server/env.example                      |   2 +
+ server/models/ScrapingJob.js            |  22 +++++
+ server/routes/businessRoute.js          |   4 +
+ server/vercel.json                      |  13 ++-
+ 5 files changed, 126 insertions(+), 23 deletions(-)
+ create mode 100644 server/models/ScrapingJob.js
+
+diff --git a/server/controller/businessController.js b/server/controller/businessController.js
+index 5a20a34..83a19e5 100644
+--- a/server/controller/businessController.js
++++ b/server/controller/businessController.js
+@@ -1,6 +1,10 @@
+ import crypto from "crypto";
+ import axios from "axios";
+ import Business from "../models/Business.js";
++import ScrapingJob from "../models/ScrapingJob.js";
++
++const MAX_ATTEMPTS = 3;
++const BACKOFF_SECONDS = [30, 120, 600]; // 30s, 2m, 10m
+ 
+ /* ─────────────────────────────────────────────────────────────
+    POST /api/business/register
+@@ -51,28 +55,9 @@ export const registerBusiness = async (req, res) => {
+       knowledgeBaseStatus: "pending",
+     });
+ 
+-    // ── Trigger n8n scraping (fire-and-forget) ────────────────
+-    if (process.env.N8N_TRAIN_WEBHOOK) {
+-      // Set to "scraping" immediately so the frontend sees progress
+-      Business.findByIdAndUpdate(business._id, { knowledgeBaseStatus: "scraping" }).catch(
+-        console.error
+-      );
+-
+-      axios
+-        .post(process.env.N8N_TRAIN_WEBHOOK, { businessId, websiteUrl })
+-        .then(() => {
+-          console.log(`[Business] Scraping triggered for ${businessId}`);
+-        })
+-        .catch((err) => {
+-          console.error("[Business] Failed to trigger scraping:", err.message);
+-          // Mark as failed so the frontend can show an error instead of spinning forever
+-          Business.findByIdAndUpdate(business._id, {
+-            knowledgeBaseStatus: "failed",
+-          }).catch(console.error);
+-        });
+-    } else {
+-      console.warn("[Business] N8N_TRAIN_WEBHOOK not set — scraping skipped");
+-    }
++    // ── Queue scraping job (processed by Vercel Cron via /process-queue) ──
++    await ScrapingJob.create({ businessId, websiteUrl });
++    console.log(`[Business] Scraping job queued for ${businessId}`);
+ 
+     // ── Build embed code snippet ──────────────────────────────
+     const embedCode = `<script src="${
+@@ -98,6 +83,85 @@ export const registerBusiness = async (req, res) => {
+   }
+ };
+ 
++/* ─────────────────────────────────────────────────────────────
++   POST /api/business/process-queue
++   Called by Vercel Cron every minute. Picks up to 3 pending scraping
++   jobs and fires them to n8n. Protected by x-n8n-secret header.
++───────────────────────────────────────────────────────────── */
++export const processScrapingQueue = async (req, res) => {
++  // Accept Vercel Cron's automatic bearer token OR the manual n8n secret header
++  const cronAuth = req.headers["authorization"];
++  const n8nSecret = req.headers["x-n8n-secret"];
++  const validCron =
++    process.env.CRON_SECRET && cronAuth === `Bearer ${process.env.CRON_SECRET}`;
++  const validManual =
++    process.env.N8N_CALLBACK_SECRET && n8nSecret === process.env.N8N_CALLBACK_SECRET;
++
++  if (!validCron && !validManual) {
++    return res.status(403).json({ success: false, message: "Unauthorized" });
++  }
++
++  if (!process.env.N8N_TRAIN_WEBHOOK) {
++    return res.status(200).json({ success: true, processed: 0, message: "N8N_TRAIN_WEBHOOK not configured" });
++  }
++
++  const now = new Date();
++  const jobs = await ScrapingJob.find({
++    status: "pending",
++    attempts: { $lt: MAX_ATTEMPTS },
++    retryAfter: { $lte: now },
++  })
++    .sort({ createdAt: 1 })
++    .limit(3);
++
++  if (jobs.length === 0) {
++    return res.status(200).json({ success: true, processed: 0 });
++  }
++
++  const results = await Promise.allSettled(
++    jobs.map(async (job) => {
++      await job.updateOne({ status: "processing", processedAt: now });
++      await Business.findOneAndUpdate(
++        { businessId: job.businessId },
++        { knowledgeBaseStatus: "scraping" }
++      );
++
++      try {
++        await axios.post(process.env.N8N_TRAIN_WEBHOOK, {
++          businessId: job.businessId,
++          websiteUrl: job.websiteUrl,
++        });
++        await job.updateOne({ status: "done" });
++        console.log(`[Queue] Scraping triggered: ${job.businessId}`);
++      } catch (err) {
++        const nextAttempt = job.attempts + 1;
++        const backoffSecs = BACKOFF_SECONDS[nextAttempt - 1] ?? 600;
++        const retryAfter = new Date(Date.now() + backoffSecs * 1000);
++
++        if (nextAttempt >= MAX_ATTEMPTS) {
++          await job.updateOne({ status: "failed", attempts: nextAttempt, lastError: err.message });
++          await Business.findOneAndUpdate(
++            { businessId: job.businessId },
++            { knowledgeBaseStatus: "failed" }
++          );
++          console.error(`[Queue] Job permanently failed: ${job.businessId} — ${err.message}`);
++        } else {
++          await job.updateOne({
++            status: "pending",
++            attempts: nextAttempt,
++            lastError: err.message,
++            retryAfter,
++          });
++          console.warn(`[Queue] Job will retry (attempt ${nextAttempt}/${MAX_ATTEMPTS}): ${job.businessId}`);
++        }
++      }
++    })
++  );
++
++  const processed = results.filter((r) => r.status === "fulfilled").length;
++  return res.status(200).json({ success: true, processed, total: jobs.length });
++};
++
+ /* ─────────────────────────────────────────────────────────────
+    POST /api/business/kb-status
+    Called by n8n when scraping completes or fails.
+diff --git a/server/env.example b/server/env.example
+index ab011da..3367155 100644
+--- a/server/env.example
++++ b/server/env.example
+@@ -10,6 +10,8 @@ N8N_TRAIN_WEBHOOK=https://n8n.example.com/webhook/train-id
+ N8N_HOST=https://n8n.example.com
+ # Shared secret between n8n and this server for the /kb-status callback
+ N8N_CALLBACK_SECRET=change-me-to-a-random-string
++# Vercel automatically sets CRON_SECRET — add it here for local testing only
++CRON_SECRET=vercel-sets-this-automatically
+ 
+ # Widget
+ WIDGET_URL=https://your-vercel-app.vercel.app/widget.js
+diff --git a/server/models/ScrapingJob.js b/server/models/ScrapingJob.js
+new file mode 100644
+index 0000000..4d0784d
+--- /dev/null
++++ b/server/models/ScrapingJob.js
+@@ -0,0 +1,22 @@
++import mongoose from "mongoose";
++
++const scrapingJobSchema = new mongoose.Schema(
++  {
++    businessId: { type: String, required: true, index: true },
++    websiteUrl: { type: String, required: true },
++    status: {
++      type: String,
++      enum: ["pending", "processing", "done", "failed"],
++      default: "pending",
++      index: true,
++    },
++    attempts: { type: Number, default: 0 },
++    lastError: { type: String },
++    // Earliest time this job may be retried (used for exponential backoff)
++    retryAfter: { type: Date, default: () => new Date() },
++    processedAt: { type: Date },
++  },
++  { timestamps: true }
++);
++
++export default mongoose.model("ScrapingJob", scrapingJobSchema);
+diff --git a/server/routes/businessRoute.js b/server/routes/businessRoute.js
+index cc95d5e..33cd45e 100644
+--- a/server/routes/businessRoute.js
++++ b/server/routes/businessRoute.js
+@@ -4,6 +4,7 @@ import {
+   getBusinessByToken,
+   updateKnowledgeBaseStatus,
+   getKnowledgeBaseProgress,
++  processScrapingQueue,
+ } from "../controller/businessController.js";
+ 
+ const businessRouter = Router();
+@@ -17,4 +18,7 @@ businessRouter.post("/kb-status", updateKnowledgeBaseStatus);
+ // Polled by frontend to show live scraping progress
+ businessRouter.get("/kb-progress/:businessId", getKnowledgeBaseProgress);
+ 
++// Triggered by Vercel Cron every minute to process the scraping queue
++businessRouter.post("/process-queue", processScrapingQueue);
++
+ export default businessRouter;
+diff --git a/server/vercel.json b/server/vercel.json
+index b633a24..6a1a51a 100644
+--- a/server/vercel.json
++++ b/server/vercel.json
+@@ -11,5 +11,16 @@
+       "src": "/(.*)",
+       "dest": "server.js"
+     }
+-  ]
++  ],
++  "crons": [
++    {
++      "path": "/api/business/process-queue",
++      "schedule": "* * * * *"
++    }
++  ],
++  "functions": {
++    "server.js": {
++      "maxDuration": 60
++    }
++  }
+ }
+-- 
+2.43.0
+
