@@ -53,17 +53,22 @@ export const registerBusiness = async (req, res) => {
 
     // ── Trigger n8n scraping (fire-and-forget) ────────────────
     if (process.env.N8N_TRAIN_WEBHOOK) {
+      // Set to "scraping" immediately so the frontend sees progress
+      Business.findByIdAndUpdate(business._id, { knowledgeBaseStatus: "scraping" }).catch(
+        console.error
+      );
+
       axios
         .post(process.env.N8N_TRAIN_WEBHOOK, { businessId, websiteUrl })
         .then(() => {
           console.log(`[Business] Scraping triggered for ${businessId}`);
-          // Update status to "scraping" once webhook fires
-          Business.findByIdAndUpdate(business._id, {
-            knowledgeBaseStatus: "scraping",
-          }).catch(console.error);
         })
         .catch((err) => {
           console.error("[Business] Failed to trigger scraping:", err.message);
+          // Mark as failed so the frontend can show an error instead of spinning forever
+          Business.findByIdAndUpdate(business._id, {
+            knowledgeBaseStatus: "failed",
+          }).catch(console.error);
         });
     } else {
       console.warn("[Business] N8N_TRAIN_WEBHOOK not set — scraping skipped");
@@ -90,6 +95,62 @@ export const registerBusiness = async (req, res) => {
       message: "Registration failed",
       error: error.message,
     });
+  }
+};
+
+/* ─────────────────────────────────────────────────────────────
+   POST /api/business/kb-status
+   Called by n8n when scraping completes or fails.
+   Body: { businessId, status: "ready"|"failed", chunks: number }
+   Header: x-n8n-secret (must match N8N_CALLBACK_SECRET env var)
+───────────────────────────────────────────────────────────── */
+export const updateKnowledgeBaseStatus = async (req, res) => {
+  try {
+    const secret = req.headers["x-n8n-secret"];
+    if (!process.env.N8N_CALLBACK_SECRET || secret !== process.env.N8N_CALLBACK_SECRET) {
+      return res.status(403).json({ success: false, message: "Unauthorized" });
+    }
+
+    const { businessId, status, chunks } = req.body;
+
+    if (!businessId || !["ready", "failed", "scraping"].includes(status)) {
+      return res.status(400).json({ success: false, message: "businessId and valid status required" });
+    }
+
+    await Business.findOneAndUpdate(
+      { businessId },
+      { knowledgeBaseStatus: status, ...(chunks != null && { kbChunkCount: chunks }) }
+    );
+
+    console.log(`[Business] KB status updated: ${businessId} → ${status} (${chunks ?? "?"} chunks)`);
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("[Business] KB status update error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/* ─────────────────────────────────────────────────────────────
+   GET /api/business/kb-progress/:businessId
+   Polled by the frontend to show live scraping progress.
+───────────────────────────────────────────────────────────── */
+export const getKnowledgeBaseProgress = async (req, res) => {
+  try {
+    const business = await Business.findOne({ businessId: req.params.businessId }).select(
+      "knowledgeBaseStatus kbChunkCount"
+    );
+
+    if (!business) {
+      return res.status(404).json({ success: false, message: "Business not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      status: business.knowledgeBaseStatus,
+      chunks: business.kbChunkCount ?? 0,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 

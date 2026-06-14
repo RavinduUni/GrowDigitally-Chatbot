@@ -42,6 +42,11 @@ const businessSchema = new mongoose.Schema(
       default: "pending",
     },
 
+    kbChunkCount: {
+      type: Number,
+      default: 0,
+    },
+
     n8nWebhookUrl: String,
 
     active: {

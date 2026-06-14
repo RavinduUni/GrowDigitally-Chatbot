@@ -1,0 +1,172 @@
+From 78cb29dcf44d364b8a2b7cdec2f66a6fb256db4d Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 14 Jun 2026 05:00:47 +0000
+Subject: [PATCH] fix: knowledgeBaseStatus lifecycle + n8n callback endpoint
+ (Step 3)
+
+- Set status to 'scraping' immediately on register (not inside .then())
+- On n8n webhook failure, set status to 'failed' so frontend doesn't spin
+- Add POST /api/business/kb-status: n8n calls this when scraping finishes
+  - Protected by x-n8n-secret header (N8N_CALLBACK_SECRET env var)
+  - Accepts status 'ready'|'failed'|'scraping' + optional chunk count
+- Add GET /api/business/kb-progress/:businessId: frontend polls this for
+  live progress (status + chunk count)
+- Add kbChunkCount field to Business model
+- Document N8N_CALLBACK_SECRET in server/env.example
+---
+ server/controller/businessController.js | 69 +++++++++++++++++++++++--
+ server/env.example                      |  2 +
+ server/models/Business.js               |  5 ++
+ server/routes/businessRoute.js          |  8 +++
+ 4 files changed, 80 insertions(+), 4 deletions(-)
+
+diff --git a/server/controller/businessController.js b/server/controller/businessController.js
+index 5383ed5..5a20a34 100644
+--- a/server/controller/businessController.js
++++ b/server/controller/businessController.js
+@@ -53,17 +53,22 @@ export const registerBusiness = async (req, res) => {
+ 
+     // ── Trigger n8n scraping (fire-and-forget) ────────────────
+     if (process.env.N8N_TRAIN_WEBHOOK) {
++      // Set to "scraping" immediately so the frontend sees progress
++      Business.findByIdAndUpdate(business._id, { knowledgeBaseStatus: "scraping" }).catch(
++        console.error
++      );
++
+       axios
+         .post(process.env.N8N_TRAIN_WEBHOOK, { businessId, websiteUrl })
+         .then(() => {
+           console.log(`[Business] Scraping triggered for ${businessId}`);
+-          // Update status to "scraping" once webhook fires
+-          Business.findByIdAndUpdate(business._id, {
+-            knowledgeBaseStatus: "scraping",
+-          }).catch(console.error);
+         })
+         .catch((err) => {
+           console.error("[Business] Failed to trigger scraping:", err.message);
++          // Mark as failed so the frontend can show an error instead of spinning forever
++          Business.findByIdAndUpdate(business._id, {
++            knowledgeBaseStatus: "failed",
++          }).catch(console.error);
+         });
+     } else {
+       console.warn("[Business] N8N_TRAIN_WEBHOOK not set — scraping skipped");
+@@ -93,6 +98,62 @@ export const registerBusiness = async (req, res) => {
+   }
+ };
+ 
++/* ─────────────────────────────────────────────────────────────
++   POST /api/business/kb-status
++   Called by n8n when scraping completes or fails.
++   Body: { businessId, status: "ready"|"failed", chunks: number }
++   Header: x-n8n-secret (must match N8N_CALLBACK_SECRET env var)
++───────────────────────────────────────────────────────────── */
++export const updateKnowledgeBaseStatus = async (req, res) => {
++  try {
++    const secret = req.headers["x-n8n-secret"];
++    if (!process.env.N8N_CALLBACK_SECRET || secret !== process.env.N8N_CALLBACK_SECRET) {
++      return res.status(403).json({ success: false, message: "Unauthorized" });
++    }
++
++    const { businessId, status, chunks } = req.body;
++
++    if (!businessId || !["ready", "failed", "scraping"].includes(status)) {
++      return res.status(400).json({ success: false, message: "businessId and valid status required" });
++    }
++
++    await Business.findOneAndUpdate(
++      { businessId },
++      { knowledgeBaseStatus: status, ...(chunks != null && { kbChunkCount: chunks }) }
++    );
++
++    console.log(`[Business] KB status updated: ${businessId} → ${status} (${chunks ?? "?"} chunks)`);
++    return res.status(200).json({ success: true });
++  } catch (error) {
++    console.error("[Business] KB status update error:", error);
++    return res.status(500).json({ success: false, message: error.message });
++  }
++};
++
++/* ─────────────────────────────────────────────────────────────
++   GET /api/business/kb-progress/:businessId
++   Polled by the frontend to show live scraping progress.
++───────────────────────────────────────────────────────────── */
++export const getKnowledgeBaseProgress = async (req, res) => {
++  try {
++    const business = await Business.findOne({ businessId: req.params.businessId }).select(
++      "knowledgeBaseStatus kbChunkCount"
++    );
++
++    if (!business) {
++      return res.status(404).json({ success: false, message: "Business not found" });
++    }
++
++    return res.status(200).json({
++      success: true,
++      status: business.knowledgeBaseStatus,
++      chunks: business.kbChunkCount ?? 0,
++    });
++  } catch (error) {
++    return res.status(500).json({ success: false, message: error.message });
++  }
++};
++
+ /* ─────────────────────────────────────────────────────────────
+    GET /api/business/by-token/:widgetToken
+    Resolves a widget token → businessId (used by the widget at load time)
+diff --git a/server/env.example b/server/env.example
+index 2ccd81d..ab011da 100644
+--- a/server/env.example
++++ b/server/env.example
+@@ -8,6 +8,8 @@ OPENAI_MODEL=gpt-4o-mini
+ # n8n — still used for website scraping/training only
+ N8N_TRAIN_WEBHOOK=https://n8n.example.com/webhook/train-id
+ N8N_HOST=https://n8n.example.com
++# Shared secret between n8n and this server for the /kb-status callback
++N8N_CALLBACK_SECRET=change-me-to-a-random-string
+ 
+ # Widget
+ WIDGET_URL=https://your-vercel-app.vercel.app/widget.js
+diff --git a/server/models/Business.js b/server/models/Business.js
+index a80a072..c45bd29 100644
+--- a/server/models/Business.js
++++ b/server/models/Business.js
+@@ -42,6 +42,11 @@ const businessSchema = new mongoose.Schema(
+       default: "pending",
+     },
+ 
++    kbChunkCount: {
++      type: Number,
++      default: 0,
++    },
++
+     n8nWebhookUrl: String,
+ 
+     active: {
+diff --git a/server/routes/businessRoute.js b/server/routes/businessRoute.js
+index e7a419c..cc95d5e 100644
+--- a/server/routes/businessRoute.js
++++ b/server/routes/businessRoute.js
+@@ -2,6 +2,8 @@ import { Router } from "express";
+ import {
+   registerBusiness,
+   getBusinessByToken,
++  updateKnowledgeBaseStatus,
++  getKnowledgeBaseProgress,
+ } from "../controller/businessController.js";
+ 
+ const businessRouter = Router();
+@@ -9,4 +11,10 @@ const businessRouter = Router();
+ businessRouter.post("/register", registerBusiness);
+ businessRouter.get("/by-token/:widgetToken", getBusinessByToken);
+ 
++// Called by n8n when scraping completes
++businessRouter.post("/kb-status", updateKnowledgeBaseStatus);
++
++// Polled by frontend to show live scraping progress
++businessRouter.get("/kb-progress/:businessId", getKnowledgeBaseProgress);
++
+ export default businessRouter;
+-- 
+2.43.0
+
