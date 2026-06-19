@@ -1,0 +1,52 @@
+From c34340d52e0ea4c70df559be4af35304137d1368 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 14 Jun 2026 07:30:51 +0000
+Subject: [PATCH] fix: replace builds+routes with functions+rewrites in
+ vercel.json
+
+---
+ server/vercel.json | 22 ++++++++--------------
+ 1 file changed, 8 insertions(+), 14 deletions(-)
+
+diff --git a/server/vercel.json b/server/vercel.json
+index 6a1a51a..4a00216 100644
+--- a/server/vercel.json
++++ b/server/vercel.json
+@@ -1,15 +1,14 @@
+ {
+   "version": 2,
+-  "builds": [
+-    {
+-      "src": "server.js",
+-      "use": "@vercel/node"
++  "functions": {
++    "server.js": {
++      "maxDuration": 60
+     }
+-  ],
+-  "routes": [
++  },
++  "rewrites": [
+     {
+-      "src": "/(.*)",
+-      "dest": "server.js"
++      "source": "/(.*)",
++      "destination": "/server.js"
+     }
+   ],
+   "crons": [
+@@ -17,10 +16,5 @@
+       "path": "/api/business/process-queue",
+       "schedule": "* * * * *"
+     }
+-  ],
+-  "functions": {
+-    "server.js": {
+-      "maxDuration": 60
+-    }
+-  }
++  ]
+ }
+-- 
+2.43.0
+

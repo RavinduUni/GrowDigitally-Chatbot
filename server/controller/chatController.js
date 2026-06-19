@@ -25,38 +25,48 @@ async function persistMessages(sessionId, businessId, userText, aiText) {
 export const sendMessage = async (req, res) => {
   try {
     const { message, sessionId } = req.body;
-    // Use the server-verified businessId from the token, not the client-supplied one
+
     const businessId = req.verifiedBusinessId;
 
     if (!message || !sessionId) {
-      return res.status(400).json({ success: false, message: "message and sessionId are required" });
+      return res.status(400).json({
+        success: false,
+        message:
+          "message and sessionId are required",
+      });
     }
 
-    const aiReply = await aiQueue.add(async () => {
-      const completion = await openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-        messages: [
+    const aiReply =
+      await aiQueue.add(async () => {
+
+        const { data } = await axios.post(
+          process.env.N8N_CHAT_WEBHOOK_URL,
           {
-            role: "system",
-            content: `You are a helpful customer support assistant for business ID: ${businessId}. Be concise, friendly, and helpful.`,
+            question: message,
+            sessionId,
+            businessId,
           },
-          { role: "user", content: message },
-        ],
+          {
+            timeout: 25000,
+          }
+        );
+
+        return (data?.reply || data?.answer || data?.output || data?.[0]?.reply || fallbackMessage);
       });
-      return completion.choices[0]?.message?.content || fallbackMessage;
+
+    persistMessages(sessionId, businessId, message, aiReply).catch((err) => {
+      console.error("DB persist error:", err);
     });
 
-    // Persist to DB — non-blocking, errors logged but don't affect user response
-    persistMessages(sessionId, businessId, message, aiReply).catch((err) =>
-      console.error("DB persist error:", err)
-    );
+    return res.status(200).json({success: true, reply: aiReply});
 
-    return res.status(200).json({ success: true, reply: aiReply });
   } catch (error) {
-    console.error("Error sending message:", error);
+
+    console.error(error);
+
     return res.status(500).json({
       success: false,
-      message: "Failed to send message",
+      message: "AI request failed",
       error: error.message,
     });
   }
